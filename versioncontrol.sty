@@ -1,0 +1,184 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{versioncontrol}[2021/07/19 LaTeX versioncontrol Package]
+
+\RequirePackage{xifthen}
+\RequirePackage{xstring}
+\RequirePackage{xparse}
+
+\def\version@local{0}
+
+%---------Testarea---------
+
+%--------------------------
+
+
+%---- useVersion Command ----
+\def\useVersion#1{\def\version@local{#1}}
+
+%---- getVersion Command ----
+\def\getVersion{\version@local}
+
+
+%----- vCommand Command -----
+% Status: In testing
+% TODO: Default value functionality
+%----------------------------
+
+\def\vCommand#1#2{%
+   \@ifnextchar[%
+     {\vCommand@i{#1}{#2}}
+     {\vCommand@i{#1}{#2}[0]}%
+}
+\def\vCommand@i#1#2[#3]{%
+   \@ifnextchar[%
+     {\vCommand@ii{#1}{#2}{#3}}
+     {\vCommand@ii{#1}{#2}{#3}[DEFAULT]}%
+}
+\def\vCommand@ii#1#2#3[#4]#5{%
+	% [M] #1 -> name of command
+	% [M] #2 -> version
+	% [O] #3 -> # of arguments
+	% [O] #4 -> DEFAULT value for #1
+	% [M] #5 -> command content
+	
+	%Check input for errors
+	\CheckInput@local{#2}[#1][#3]
+	
+	%build command
+	\ifdim #2pt>\version@local pt\else
+		\ifnum 0=#3%
+			\expandafter\def\csname #1\endcsname{#5}%
+		\else \ifnum 1=#3%
+	        \expandafter\def\csname #1\endcsname##1{#5}%
+		\else \ifnum 2=#3%
+	        	\expandafter\def\csname #1\endcsname##1##2{#5}%
+	    \else \ifnum 3=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3{#5}%
+	    \else \ifnum 4=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4{#5}%
+	    \else \ifnum 5=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4##5{#5}%
+	    \else \ifnum 6=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4##5##6{#5}%
+	    \else \ifnum 7=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4##5##6##7{#5}%
+	    \else \ifnum 8=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4##5##6##7##8{#5}%
+	    \else \ifnum 9=#3%
+	    		\expandafter\def\csname #1\endcsname##1##2##3##4##5##6##7##8##9{#5}%
+	    \fi\fi\fi\fi\fi\fi\fi\fi\fi\fi
+	\fi
+}
+
+%----- vPackage Command -----
+% Status: In testing
+%----------------------------
+
+\def\vPackage#1#2{
+	%Check value of version
+	\CheckInput@local{#2}
+	
+	%conditionally load package
+	\ifdim #2pt>\version@local pt\else
+		\usepackage{#1}%
+	\fi
+}
+
+%----- vEnvironment Command -----
+% Status: in testing
+% TODO: Default value functionality
+%--------------------------------
+
+\def\vEnvironment#1#2{%
+   \@ifnextchar[%
+     {\vEnvironment@i{#1}{#2}}
+     {\vEnvironment@i{#1}{#2}[0]}%
+}
+\def\vEnvironment@i#1#2[#3]{%
+   \@ifnextchar[%
+     {\vEnvironment@ii{#1}{#2}{#3}}
+     {\vEnvironment@ii{#1}{#2}{#3}[DEFAULT]}%
+}
+
+\def\vEnvironment@ii#1#2#3[#4]#5#6{%
+	% [M] #1 -> name of command
+	% [M] #2 -> version
+	% [O] #3 -> # of arguments
+	% [O] #4 -> DEFAULT value for #1
+	% [M] #5 -> command content before
+	% [M] #6 -> command content after
+	
+	%Check input
+	\CheckInput@local{#2}[#1][#3]
+	
+	%build environment
+	\ifdim #2pt>\version@local pt\else
+		\@ifundefined{#1}{%
+			\newenvironment{#1}[#3]{#5}{#6}
+		}{
+			\renewenvironment{#1}[#3]{#5}{#6}
+		}
+	\fi
+}
+
+%------- Input Checking ---------
+% Status: in testing
+%--------------------------------
+\def\CheckInput@local#1{%
+   \@ifnextchar[%
+     {\CheckInput@localI{#1}}
+     {\CheckInput@localI{#1}[PASS]}%
+}
+
+\def\CheckInput@localI#1[#2]{%
+   \@ifnextchar[%
+     {\CheckInput@localII{#1}{#2}}
+     {\CheckInput@localII{#1}{#2}[0]}%
+}
+
+\def\CheckInput@localII#1#2[#3]{
+	% [M] #1 -> version
+	% [O] #2 -> name of command
+	% [O] #3 -> # of arguments
+	
+	%Check if command/environment name equals a packet command
+	\IfStrEqCase{#2}{%
+	{vCommand}{\alreadyDefinedError@local{#1}}%
+	{vPackage}{\alreadyDefinedError@local{#1}}%
+	{vEnvironment}{\alreadyDefinedError@local{#1}}%
+	{useVersion}{\alreadyDefinedError@local{#1}}%
+	{getVersion}{\alreadyDefinedError@local{#1}}%
+	}
+	
+	%Check if version is a decimal value and non-negative
+	\IfDecimal{#1}{}{
+		\PackageError{versioncontrol}{version must be a floating point value}{Change version to an integer value}
+	}
+	
+	\ifdim #1 pt<0pt{
+		\PackageError{versioncontrol}{version must be positive}{Change version to a positive integer}
+	}\fi
+
+	%Check if # of arguments is in range [0..9] and integer valued
+	\ifnum #3<0{
+		\PackageError{versioncontrol}{Number of Arguments cannot be negative}{Change number of arguments to a number in the range [0...9]}
+	}\else \ifnum #3>9{
+		\PackageError{versioncontrol}{Number of Arguments cannot be larger than 9}{Change number of arguments to a number in the range [0...9]}
+	}\fi\fi
+	
+	\IfInteger{#3}{}{
+		\PackageError{versioncontrol}{arg must be an integer value}{Change arg to an integer value}
+	}
+}
+
+%TODO: Change text
+\def\alreadyDefinedError@local#1{
+	\PackageError{versioncontrol}{Command #1 already defined}{Change the name of this command}
+}
+
+
+
+
+
+
+
